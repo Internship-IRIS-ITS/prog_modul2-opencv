@@ -104,78 +104,41 @@ g++ 1_bev.cpp -o 1_bev -I/usr/include/opencv4 -lopencv_core -lopencv_imgcodecs -
 
 ---
 
-## 2. 2_calib.cpp - Single Camera Calibration (Pinhole Camera Model)
+## 2. 2_calib.cpp - Live USB Webcam Calibration (Pinhole Camera Model)
 
-Program ini melakukan kalibrasi kamera tunggal (single camera / monocular) menggunakan
-sekelompok gambar chessboard pattern. Kalibrasi menghasilkan matriks intrinsik kamera ($K$),
-focal length ($f_x, f_y$), titik utama ($c_x, c_y$), dan koefisien distorsi yang disimpan ke
-file `yaml/kalibrasi.yaml`.
+Program ini melakukan kalibrasi kamera tunggal (single camera / monocular) secara **live interaktif** menggunakan **USB Webcam**.
+Kalibrasi menghasilkan matriks intrinsik kamera ($K$), focal length ($f_x, f_y$), titik utama ($c_x, c_y$), dan koefisien distorsi yang disimpan ke file `yaml/kalibrasi.yaml`.
 
-### Cara Compile
+### Kontrol Tombol Interaktif
+
+- **`[SPASI]`**: Mengambil foto snapshot saat chessboard terdeteksi.
+- **`[C]`**: Menjalankan perhitungan kalibrasi `cv::calibrateCamera()` (setelah mengambil minimal 5–10 foto).
+- **`[ESC]`**: Batal / keluar dari program.
+
+### Cara Compile & Jalankan
 
 ```bash
 g++ 2_calib.cpp -o 2_calib $(pkg-config --cflags --libs opencv4)
-```
-
-### Cara Jalankan
-
-```bash
 ./2_calib
 ```
 
-### Cara Jalankan (tanpa pkg-config)
+### Penjelasan Langkah Kode
 
-```bash
-g++ 2_calib.cpp -o 2_calib -I/usr/include/opencv4 -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -lopencv_highgui -lopencv_calib3d
-./2_calib
-```
-
-### Penjelasan Kode
-
-Program ini terdiri dari 4 langkah utama:
-
-#### Langkah 1 - Konfigurasi Chessboard
-
-```cpp
-cv::Size boardSize(9, 6);
-float squareSize = 25.0f; // mm
-```
-
-Mendefinisikan jumlah sudut dalam chessboard (9x6 inner corners) dan ukuran fisik kotak dalam mm.
-
-#### Langkah 2 - Deteksi Sudut Chessboard
-
-```cpp
-cv::findChessboardCorners(gray, boardSize, corners, flags);
-cv::cornerSubPix(gray, corners, cv::Size(11, 11), cv::Size(-1, -1), criteria);
-```
-
-Mendeteksi posisi 2D sudut-sudut chessboard pada setiap gambar dan melakukan penyempurnaan sub-piksel.
-
-#### Langkah 3 - Kalibrasi Kamera Single
-
-```cpp
-cv::calibrateCamera(objectPoints, imagePoints, imageSize, cameraMatrix, distCoeffs, rvecs, tvecs);
-```
-
-Menghitung matriks intrinsik kamera ($K$) dan koefisien distorsi berdasarkan pemetaan koordinat 3D objek ke 2D gambar.
-
-#### Langkah 4 - Simpan Parameter ke YAML
-
-```cpp
-cv::FileStorage fs(outputPath, cv::FileStorage::WRITE);
-fs << "camera_matrix" << cameraMatrix;
-fs << "focal_length_x" << cameraMatrix.at<double>(0, 0);
-fs << "focal_length_y" << cameraMatrix.at<double>(1, 1);
-```
-
-Menyimpan semua parameter intrinsik ke file `yaml/kalibrasi.yaml`.
+1. **Inisialisasi USB Webcam**: Membuka kamera `cv::VideoCapture(0)` dan mengunci resolusi ke $640 \times 480$.
+2. **Interactive Frame Capture**: Membaca frame live, mendeteksi sudut chessboard (`cv::findChessboardCorners`), dan menggambar overlay pola jika terdeteksi.
+3. **Penyimpanan Snapshot**: Saat tombol `SPASI` ditekan, koordinat 2D sudut disempurnakan (`cv::cornerSubPix`) dan disimpan ke memori.
+4. **Kalibrasi & Simpan YAML**: Menghitung `cv::calibrateCamera` dan menyimpan matriks $K$ serta nilai $f_x, f_y, c_x, c_y$ ke `yaml/kalibrasi.yaml`.
 
 ---
 
-## 3. 3_depth.cpp - Monocular Depth Estimation (Pinhole Camera Model)
+## 3. 3_depth.cpp - Live Monocular Depth Estimation (Pinhole Camera Model)
 
-Program ini menghitung estimasi jarak/kedalaman ($Z$) dan posisi 3D ($X, Y, Z$) dari kamera tunggal (seperti webcam atau smartphone) menggunakan **Pinhole Camera Model**.
+Program ini menghitung estimasi jarak/kedalaman ($Z$) dan posisi 3D ($X, Y, Z$) secara **real-time** dari aliran video **USB Webcam** menggunakan **Pinhole Camera Model**.
+
+### Kontrol Tombol Interaktif
+
+- **`[S]`**: Menyimpan foto snapshot visualisasi saat ini ke `assets/result/4-bev/depth_pinhole.jpg` dan data log ke `yaml/depth.yaml`.
+- **`[ESC]` / `[Q]`**: Keluar dari video stream.
 
 ### Alur Penurunan Rumus Pinhole Camera Model
 
@@ -209,56 +172,40 @@ $$Z = \frac{f_x \cdot W_{\text{real}}}{w_{\text{pixel}}}$$
 ### Keterangan Parameter & Variabel
 
 1. **$f_x$ & $f_y$ (*Focal Length in Pixels*)**:
-   - Jarak fokus lensa kamera yang dinyatakan dalam satuan piksel pada sumbu horizontal ($f_x$) dan vertikal ($f_y$).
-   - Nilai $f_x$ dan $f_y$ diperoleh dari kalibrasi kamera (`2_calib.cpp`) pada matriks intrinsik $K$:
+   - Jarak fokus lensa kamera dalam piksel, diperoleh dari hasil kalibrasi webcam (`2_calib.cpp`) pada matriks intrinsik $K$:
 
 $$
 K = \begin{bmatrix} f_x & 0 & c_x \\\\ 0 & f_y & c_y \\\\ 0 & 0 & 1 \end{bmatrix}
 $$
 
 2. **$c_x$ & $c_y$ (*Principal Point / Titik Pusat Optik*)**:
-   - **$c_x$**: Koordinat titik pusat optik lensa pada sumbu horizontal gambar (dalam piksel).
-   - **$c_y$**: Koordinat titik pusat optik lensa pada sumbu vertikal gambar (dalam piksel).
-   - **Fungsi $c_x$ dan $c_y$**: Menjadi titik acuan origin $(0,0,0)$ pada pusat optik lensa kamera (bukan di pojok kiri-atas citra $[0,0]$ piksel). Digunakan untuk menghitung pergeseran koordinat 3D horizontal ($X$) dan vertikal ($Y$):
+   - Titik pusat optik lensa pada sumbu horizontal ($c_x$) dan vertikal ($c_y$). Digunakan untuk menghitung pergeseran koordinat 3D ($X, Y$):
 
 $$X = \frac{(x_{\text{pixel}} - c_x) \cdot Z}{f_x}, \quad Y = \frac{(y_{\text{pixel}} - c_y) \cdot Z}{f_y}$$
 
 3. **$W_{\text{real}}$ (*Real World Width*)**:
-   - Ukuran lebar fisik objek asli yang diketahui dalam satuan milimeter (mm) atau meter (m). Pada program ini, $W_{\text{real}} = 200\text{ mm}$ (jarak antar sudut chessboard terluar).
+   - Ukuran lebar fisik objek referensi dalam mm (pada contoh ini $W_{\text{real}} = 200\text{ mm}$).
 
 4. **$w_{\text{pixel}}$ (*Image Pixel Width*)**:
-   - Ukuran lebar proyeksi objek yang terukur pada citra 2D dalam satuan piksel (`cv::norm(topRight - topLeft)`).
+   - Ukuran lebar proyeksi objek yang terukur pada frame live USB webcam dalam piksel.
 
 5. **$Z$ (*Depth / Distance*)**:
-   - Jarak tegak lurus dari titik optik kamera ke permukaan objek dalam satuan milimeter (mm) atau meter (m).
+   - Jarak kedalaman dari kamera ke permukaan objek dalam mm atau meter.
 
-### Cara Compile
+### Cara Compile & Jalankan
 
 ```bash
 g++ 3_depth.cpp -o 3_depth $(pkg-config --cflags --libs opencv4)
-```
-
-### Cara Jalankan
-
-```bash
-./3_depth
-```
-
-### Cara Jalankan (tanpa pkg-config)
-
-```bash
-g++ 3_depth.cpp -o 3_depth -I/usr/include/opencv4 -lopencv_core -lopencv_imgcodecs -lopencv_imgproc -lopencv_highgui -lopencv_calib3d
 ./3_depth
 ```
 
 ### Penjelasan Langkah Kode
 
 1. **Load Parameter Kalibrasi**: Membaca $f_x, f_y, c_x, c_y$ dari `yaml/kalibrasi.yaml`.
-2. **Deteksi Objek Referensi**: Mendeteksi sudut chessboard dan mengukur lebar piksel ($w_{\text{pixel}}$).
-3. **Hitung Kedalaman Pinhole**: Menghitung $Z = \frac{f_x \cdot W_{\text{real}}}{w_{\text{pixel}}}$.
-4. **Hitung Posisi 3D**:
-   $$X = \frac{(x_{\text{pixel}} - c_x) \cdot Z}{f_x}, \quad Y = \frac{(y_{\text{pixel}} - c_y) \cdot Z}{f_y}$$
-5. **Visualisasi & Simpan Result**: Menggambar bounding box, titik pusat, label jarak ($Z$), dan menyimpan ke `assets/result/4-bev/depth_pinhole.jpg` serta `yaml/depth.yaml`.
+2. **Live Capture**: Membuka stream USB webcam (`cv::VideoCapture cap(0)`).
+3. **Deteksi Objek & Pixel Width**: Mendeteksi objek referensi pada frame live dan mengukur $w_{\text{pixel}}$.
+4. **Kalkulasi Real-Time**: Menghitung $Z = \frac{f_x \cdot W_{\text{real}}}{w_{\text{pixel}}}$ dan posisi 3D ($X, Y, Z$) di setiap frame.
+5. **HUD Overlay Video Stream**: Menampilkan bounding box, titik pusat, dan label kedalaman ($Z$) secara real-time pada jendela `cv::imshow`.
 
 ---
 
@@ -278,11 +225,9 @@ rm -f 1_bev 2_calib 3_depth
 
 ## Catatan
 
-- Pastikan file `road3.jpeg` berada di folder `assets/photos/`.
-- Gambar kalibrasi (`left01.jpg` - `left14.jpg`) berada di folder `assets/calib/`.
-- Jalankan `2_calib` terlebih dahulu sebelum `3_depth`, karena `3_depth` membutuhkan file `yaml/kalibrasi.yaml` sebagai input parameter intrinsik.
-- Hasil kalibrasi dan depth tersimpan di `4-bev/yaml/`.
-- Hasil visualisasi tersimpan di folder `assets/result/4-bev/`.
+- Hubungkan USB Webcam ke port USB komputer sebelum menjalankan `2_calib` atau `3_depth`.
+- Jalankan `2_calib` terlebih dahulu untuk menghasilkan `yaml/kalibrasi.yaml` khas USB webcam tersebut.
+- Pengujian `3_depth` akan menampilkan nilai $Z$ yang berubah secara dinamis saat objek didekatkan/dijauhkan dari webcam.
 
 ---
 

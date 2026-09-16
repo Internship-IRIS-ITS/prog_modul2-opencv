@@ -1,5 +1,5 @@
 /*
-    * Single Camera Calibration (Pinhole Camera Model)
+    * Single Camera Calibration via Live USB Webcam (Pinhole Camera Model)
 */
 
 #include <opencv2/opencv.hpp>
@@ -8,57 +8,109 @@
 #include <string>
 
 int main() {
-	cv::Size boardSize(9, 6);
-	float squareSize = 25.0f; // mm
-	std::string imageDir = "../assets/calib/";
+	cv::Size boardSize(8, 6); // 8x6 inner corners (dari 9x7 kotak)
+	float squareSize = 23.0f; // 23 mm
 	std::string outputPath = "yaml/kalibrasi.yaml";
 
-	std::vector<int> indices = {1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14};
-	std::vector<std::string> imageFiles;
-	for (int idx : indices) {
-		char fname[32];
-		snprintf(fname, sizeof(fname), "left%02d.jpg", idx);
-		imageFiles.push_back(imageDir + fname);
+	// Pakai 0,1 atau 2 tergantung webcam yang terpasang di PC/Laptop
+	int cameraID = 0;
+	cv::VideoCapture cap(cameraID);
+	if (!cap.isOpened()) {
+		std::cerr << "Gagal membuka USB Webcam pada index " << cameraID << std::endl;
+		return -1;
 	}
+
+	cap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+	cap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
 
 	std::vector<cv::Point3f> objp;
 	for (int i = 0; i < boardSize.height; i++)
 		for (int j = 0; j < boardSize.width; j++)
-			objp.push_back(cv::Point3f(j * squareSize, i * squareSize, 0));
+			objp.push_back(cv::Point3f(j * squareSize, i * squareSize, 0.0f));
 
 	std::vector<std::vector<cv::Point3f>> objectPoints;
 	std::vector<std::vector<cv::Point2f>> imagePoints;
 	cv::Size imageSize;
 
-	for (const auto& file : imageFiles) {
-		cv::Mat img = cv::imread(file);
-		if (img.empty()) continue;
+	cv::Mat frame, gray;
+	int capturedCount = 0;
+	int targetSnapshots = 25;
 
-		if (imageSize.empty()) imageSize = img.size();
+	std::cout << " KALIBRASI LIVE USB WEBCAM " << std::endl;
+	std::cout << "- Arahkan chessboard (8x6 inner corners) ke webcam." << std::endl;
+	std::cout << "- Tekan [SPASI] untuk mengambil snapshot foto." << std::endl;
+	std::cout << "- Tekan [C] untuk memproses kalibrasi (min " << targetSnapshots << " foto)." << std::endl;
+	std::cout << "- Tekan [ESC] untuk keluar/batal." << std::endl;
 
-		cv::Mat gray;
-		cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
+	while (true) {
+		cap >> frame;
+		if (frame.empty()) {
+			std::cerr << "Frame kosong dari webcam." << std::endl;
+			break;
+		}
+
+		if (imageSize.empty()) imageSize = frame.size();
+
+		cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
 
 		std::vector<cv::Point2f> corners;
 		int flags = cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE | cv::CALIB_CB_FAST_CHECK;
 		bool found = cv::findChessboardCorners(gray, boardSize, corners, flags);
 
+		cv::Mat display = frame.clone();
 		if (found) {
+			cv::drawChessboardCorners(display, boardSize, corners, found);
+		}
+
+		char countStr[128];
+		snprintf(countStr, sizeof(countStr), "Foto Terambil: %d / %d", capturedCount, targetSnapshots);
+		cv::putText(display, countStr, cv::Point(20, 35), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+		cv::putText(display, "[SPASI]: Ambil Foto | [C]: Hitung Kalibrasi | [ESC]: Batal", cv::Point(20, display.rows - 20),
+			cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
+
+		cv::imshow("Live USB Webcam Calibration", display);
+
+		char key = (char)cv::waitKey(30);
+		if (key == 27) { // ESC
+			std::cout << "Kalibrasi dibatalkan oleh pengguna." << std::endl;
+			return 0;
+		}
+		else if (key == ' ' && found) {
 			cv::TermCriteria criteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.001);
 			cv::cornerSubPix(gray, corners, cv::Size(11, 11), cv::Size(-1, -1), criteria);
+
 			objectPoints.push_back(objp);
 			imagePoints.push_back(corners);
+			capturedCount++;
+
+			std::cout << "--> Snapshot ke-" << capturedCount << " berhasil terambil!" << std::endl;
+		}
+		else if ((key == 'c' || key == 'C') || capturedCount >= targetSnapshots) {
+			if (capturedCount < 5) {
+				std::cout << "Foto belum cukup! Ambil minimal " << targetSnapshots << " foto dulu." << std::endl;
+				continue;
+			}
+			break;
 		}
 	}
 
-	cv::Mat cameraMatrix, distCoeffs;
+	cap.release();
+	cv::destroyAllWindows();
+
+	std::cout << "\nMemproses Kalibrasi Kamera dari " << capturedCount << " snapshot..." << std::endl;
+
+	cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
+	cv::Mat distCoeffs = cv::Mat::zeros(8, 1, CV_64F);
 	std::vector<cv::Mat> rvecs, tvecs;
 
 	double rms = cv::calibrateCamera(objectPoints, imagePoints, imageSize,
 		cameraMatrix, distCoeffs, rvecs, tvecs);
 
 	cv::FileStorage fs(outputPath, cv::FileStorage::WRITE);
-	if (!fs.isOpened()) return -1;
+	if (!fs.isOpened()) {
+		std::cerr << "Gagal membuka file output: " << outputPath << std::endl;
+		return -1;
+	}
 
 	fs << "image_width" << imageSize.width;
 	fs << "image_height" << imageSize.height;
@@ -75,9 +127,10 @@ int main() {
 	fs << "reprojection_error" << rms;
 	fs.release();
 
+	std::cout << "=== HASIL KALIBRASI WEBCAM ===" << std::endl;
 	std::cout << "RMS Reprojection Error: " << rms << " px" << std::endl;
-	std::cout << "Focal Length (fx, fy): " << cameraMatrix.at<double>(0, 0) << ", " << cameraMatrix.at<double>(1, 1) << std::endl;
-	std::cout << "Principal Point (cx, cy): " << cameraMatrix.at<double>(0, 2) << ", " << cameraMatrix.at<double>(1, 2) << std::endl;
+	std::cout << "Focal Length (fx, fy): (" << cameraMatrix.at<double>(0, 0) << ", " << cameraMatrix.at<double>(1, 1) << ") px" << std::endl;
+	std::cout << "Principal Point (cx, cy): (" << cameraMatrix.at<double>(0, 2) << ", " << cameraMatrix.at<double>(1, 2) << ") px" << std::endl;
 	std::cout << "Hasil kalibrasi tersimpan di: " << outputPath << std::endl;
 
 	return 0;
