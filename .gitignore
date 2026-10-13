@@ -30,3 +30,5 @@ assets/result/4-bev/*.jpg
 *.yaml
 *.yml
 
+# Kpp
+Kpp/*
