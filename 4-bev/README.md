@@ -1,8 +1,5 @@
 # Modul 4 - Bird's Eye View & Kalibrasi Kamera dengan OpenCV
 
-**Author**: Brenanda Caesa Pamudya  
-**Email**: brenandapamudya178@gmail.com  
-
 ---
 
 Modul ini menjelaskan teknik transformasi perspektif Bird's Eye View (BEV),
@@ -228,7 +225,3 @@ rm -f 1_bev 2_calib 3_depth
 - Hubungkan USB Webcam ke port USB komputer sebelum menjalankan `2_calib` atau `3_depth`.
 - Jalankan `2_calib` terlebih dahulu untuk menghasilkan `yaml/kalibrasi.yaml` khas USB webcam tersebut.
 - Pengujian `3_depth` akan menampilkan nilai $Z$ yang berubah secara dinamis saat objek didekatkan/dijauhkan dari webcam.
-
----
-
-If you have any questions or feedback, feel free to reach out via email!

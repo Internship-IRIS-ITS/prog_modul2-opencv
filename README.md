@@ -1,8 +1,5 @@
 # Modul Pembelajaran OpenCV (C++)
 
-**Author**: Brenanda Caesa Pamudya  
-**Email**: brenandapamudya178@gmail.com  
-
 ```text
                                     .=+****++:                         
                                 **+             .-:                    
@@ -95,7 +92,3 @@ g++ nama_program.cpp -o nama_binary $(pkg-config --cflags --libs opencv4)
 ```
 
 Untuk petunjuk kompilasi dan penjelasan detail tiap program, silakan buka `README.md` pada masing-masing folder modul.
-
----
-
-If you have any questions or feedback, feel free to reach out via email!

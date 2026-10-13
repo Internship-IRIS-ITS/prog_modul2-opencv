@@ -1,8 +1,5 @@
 # Modul 2 - Manipulasi Citra dengan OpenCV
 
-**Author**: Brenanda Caesa Pamudya  
-**Email**: brenandapamudya178@gmail.com  
-
 ---
 
 Modul ini menjelaskan manipulasi dasar citra menggunakan library OpenCV di C++.
@@ -197,9 +194,3 @@ rm -f 1_flip 2_resize 3_roi
 - Untuk 3_roi.cpp, ubah nilai `cv::Rect(x, y, width, height)` untuk memilih area
   yang berbeda dari gambar.
 - Tekan tombol apapun pada jendela untuk menutup program.
-
----
-
-If you have any questions or feedback, feel free to reach out via email!
-
-

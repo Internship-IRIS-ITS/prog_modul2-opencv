@@ -1,8 +1,5 @@
 # Modul 1 - Akses Citra dengan OpenCV
 
-**Author**: Brenanda Caesa Pamudya  
-**Email**: brenandapamudya178@gmail.com  
-
 ---
 
 Modul ini menjelaskan dasar akses citra menggunakan library OpenCV di C++.
@@ -179,9 +176,3 @@ rm -f 1_gambar 2_video 3_kamera
   sistem operasi.
 - Tekan tombol apapun pada program gambar, atau tombol `q` pada program video dan
   kamera untuk menutup jendela.
-
----
-
-If you have any questions or feedback, feel free to reach out via email!
-
-
