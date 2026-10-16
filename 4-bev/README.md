@@ -4,8 +4,11 @@
 
 Modul ini menjelaskan teknik transformasi perspektif Bird's Eye View (BEV),
 kalibrasi single camera (pinhole model), dan monocular depth estimation menggunakan library OpenCV di C++.
-Terdapat tiga program yang mencakup transformasi BEV dari gambar jalan,
-kalibrasi single camera dengan chessboard pattern, dan monocular depth estimation berbasis Pinhole Camera Model.
+
+Dalam modul ini:
+1. **`1_bev.cpp`**: Program contoh implementasi transformasi Bird's Eye View dari gambar jalan (disediakan sebagai bahan materi).
+2. **`2_calib.cpp`** *(Tugas Mandiri 1)*: Program kalibrasi live webcam berbasis chessboard pattern yang **dibuat secara mandiri oleh peserta**.
+3. **`3_depth.cpp`** *(Tugas Mandiri 2)*: Program live monocular depth estimation berbasis Pinhole Camera Model yang **dibuat secara mandiri oleh peserta**.
 
 ## Prasyarat
 
@@ -22,30 +25,28 @@ sudo apt install libopencv-dev
 
 ## Struktur Folder
 
-```
+```text
 4-bev/
-├── 1_bev.cpp       # Program transformasi Bird's Eye View
-├── 2_calib.cpp     # Program kalibrasi single camera (pinhole model)
-├── 3_depth.cpp     # Program monocular depth estimation (pinhole model)
+├── 1_bev.cpp       # Program transformasi Bird's Eye View (Disediakan)
+├── 2_calib.cpp     # [Tugas Mandiri] Program kalibrasi kamera (dibuat oleh peserta)
+├── 3_depth.cpp     # [Tugas Mandiri] Program monocular depth estimation (dibuat oleh peserta)
 ├── yaml/
-│   ├── kalibrasi.yaml   # Output hasil kalibrasi intrinsik kamera
-│   └── depth.yaml       # Output data depth 3D terhitung
-└── README.md       # Dokumentasi modul
+│   ├── kalibrasi.yaml   # Output hasil kalibrasi intrinsik kamera (dari 2_calib)
+│   └── depth.yaml       # Output data depth 3D terhitung (dari 3_depth)
+└── README.md       # Dokumentasi modul & panduan tugas mandiri
 ```
 
-Asset yang digunakan oleh ketiga program terdapat di folder `assets/`:
+Asset yang digunakan oleh program terdapat di folder `assets/`:
 
-```
+```text
 assets/
 ├── photos/
-│   └── road3.jpeg
-├── calib/
-│   └── left01.jpg - left14.jpg    # Gambar kalibrasi single camera
+│   └── road3.jpeg                 # Gambar jalan untuk pengujian 1_bev.cpp
 └── result/
     └── 4-bev/
-        ├── BEV_view.jpg
-        ├── Segmented_Image.jpg
-        └── depth_pinhole.jpg
+        ├── BEV_view.jpg           # Output hasil transformasi BEV
+        ├── Segmented_Image.jpg    # Output segmentasi jalan
+        └── depth_pinhole.jpg      # Output snapshot pengujian depth
 ```
 
 ---
@@ -56,15 +57,10 @@ Program ini membaca gambar jalan, mendeteksi garis kuning dan putih menggunakan
 color thresholding (HLS), kemudian melakukan transformasi perspektif untuk
 menghasilkan tampilan Bird's Eye View.
 
-### Cara Compile
+### Cara Compile & Jalankan
 
 ```bash
 g++ 1_bev.cpp -o 1_bev $(pkg-config --cflags --libs opencv4)
-```
-
-### Cara Jalankan
-
-```bash
 ./1_bev
 ```
 
@@ -101,41 +97,58 @@ g++ 1_bev.cpp -o 1_bev -I/usr/include/opencv4 -lopencv_core -lopencv_imgcodecs -
 
 ---
 
-## 2. 2_calib.cpp - Live USB Webcam Calibration (Pinhole Camera Model)
+## 2. [Tugas Mandiri 1] 2_calib.cpp - Live USB Webcam Calibration (Pinhole Camera Model)
 
-Program ini melakukan kalibrasi kamera tunggal (single camera / monocular) secara **live interaktif** menggunakan **USB Webcam**.
-Kalibrasi menghasilkan matriks intrinsik kamera ($K$), focal length ($f_x, f_y$), titik utama ($c_x, c_y$), dan koefisien distorsi yang disimpan ke file `yaml/kalibrasi.yaml`.
+> [!IMPORTANT]
+> File `2_calib.cpp` **tidak disediakan** di repositori ini. Peserta diharapkan membuat dan mengimplementasikan program kalibrasi ini secara mandiri sesuai dengan panduan spesifikasi di bawah.
 
-### Kontrol Tombol Interaktif
+Program ini bertujuan untuk melakukan kalibrasi kamera tunggal (single camera / monocular) secara **live interaktif** menggunakan **USB Webcam / Kamera Laptop**.
+Kalibrasi ini penting untuk menghitung matriks intrinsik kamera ($K$), focal length ($f_x, f_y$), titik utama ($c_x, c_y$), dan koefisien distorsi, kemudian menyimpannya ke file `yaml/kalibrasi.yaml`.
+
+### Spesifikasi Fungsional
+
+1. **Konfigurasi Chessboard**:
+   - Definisikan jumlah sudut dalam pola papan catur (*inner corners*). Standar acuan: `cv::Size(8, 6)` (dari pola catur $9 \times 7$ kotak) dengan ukuran fisik kotak `squareSize = 23.0f` (mm) atau disesuaikan dengan pola cetak masing-masing.
+2. **Inisialisasi USB Webcam**:
+   - Buka video stream webcam (`cv::VideoCapture cap(0)`).
+   - Set resolusi frame standar (misal: $640 \times 480$ piksel).
+3. **Deteksi Sudut Chessboard Interaktif**:
+   - Konversi frame ke grayscale (`cv::cvtColor`).
+   - Deteksi koordinat 2D sudut pola papan catur dengan `cv::findChessboardCorners`.
+   - Gambar visualisasi overlay sudut yang terdeteksi dengan `cv::drawChessboardCorners`.
+4. **Penyimpanan Snapshot 2D–3D**:
+   - Buat kontrol tombol (rekomendasi: **`[SPASI]`**) untuk mengambil snapshot saat pola terdeteksi.
+   - Sempurnakan akurasi titik sudut hingga sub-piksel dengan `cv::cornerSubPix`.
+   - Simpan titik 3D objek (`objectPoints`) dan titik 2D citra (`imagePoints`).
+   - Kumpulkan minimal 15–25 snapshot dari berbagai variasi jarak dan orientasi sudut kemiringan.
+5. **Kalkulasi Kalibrasi**:
+   - Buat pemicu tombol (rekomendasi: **`[C]`**) untuk menjalankan fungsi `cv::calibrateCamera(...)`.
+   - Hitung matriks intrinsik kamera ($K$), koefisien distorsi lensa, dan evaluasi nilai reprojection error (RMS).
+6. **Ekspor Parameter ke YAML**:
+   - Tulis seluruh hasil kalibrasi ke file `yaml/kalibrasi.yaml` menggunakan `cv::FileStorage` (mode `WRITE`).
+   - Parameter yang wajib disimpan: `camera_matrix`, `distortion_coefficients`, `focal_length_x`, `focal_length_y`, `principal_point_x`, `principal_point_y`, `board_width`, `board_height`, `square_size`.
+
+### Rekomendasi Kontrol Tombol Interaktif
 
 - **`[SPASI]`**: Mengambil foto snapshot saat chessboard terdeteksi.
-- **`[C]`**: Menjalankan perhitungan kalibrasi `cv::calibrateCamera()` (setelah mengambil minimal 5–10 foto).
+- **`[C]`**: Menjalankan perhitungan kalibrasi `cv::calibrateCamera()` (setelah mengambil minimal snapshot yang cukup).
 - **`[ESC]`**: Batal / keluar dari program.
 
-### Cara Compile & Jalankan
+### Cara Compile & Jalankan (Setelah Kode Dibuat)
 
 ```bash
 g++ 2_calib.cpp -o 2_calib $(pkg-config --cflags --libs opencv4)
 ./2_calib
 ```
 
-### Penjelasan Langkah Kode
-
-1. **Inisialisasi USB Webcam**: Membuka kamera `cv::VideoCapture(0)` dan mengunci resolusi ke $640 \times 480$.
-2. **Interactive Frame Capture**: Membaca frame live, mendeteksi sudut chessboard (`cv::findChessboardCorners`), dan menggambar overlay pola jika terdeteksi.
-3. **Penyimpanan Snapshot**: Saat tombol `SPASI` ditekan, koordinat 2D sudut disempurnakan (`cv::cornerSubPix`) dan disimpan ke memori.
-4. **Kalibrasi & Simpan YAML**: Menghitung `cv::calibrateCamera` dan menyimpan matriks $K$ serta nilai $f_x, f_y, c_x, c_y$ ke `yaml/kalibrasi.yaml`.
-
 ---
 
-## 3. 3_depth.cpp - Live Monocular Depth Estimation (Pinhole Camera Model)
+## 3. [Tugas Mandiri 2] 3_depth.cpp - Live Monocular Depth Estimation (Pinhole Camera Model)
 
-Program ini menghitung estimasi jarak/kedalaman ($Z$) dan posisi 3D ($X, Y, Z$) secara **real-time** dari aliran video **USB Webcam** menggunakan **Pinhole Camera Model**.
+> [!IMPORTANT]
+> File `3_depth.cpp` **tidak disediakan** di repositori ini. Peserta diharapkan membuat dan mengimplementasikan program estimasi kedalaman ini secara mandiri dengan menerapkan rumus matematika Pinhole Camera Model.
 
-### Kontrol Tombol Interaktif
-
-- **`[S]`**: Menyimpan foto snapshot visualisasi saat ini ke `assets/result/4-bev/depth_pinhole.jpg` dan data log ke `yaml/depth.yaml`.
-- **`[ESC]` / `[Q]`**: Keluar dari video stream.
+Program ini bertujuan untuk menghitung estimasi jarak/kedalaman ($Z$) dan posisi 3D ($X, Y, Z$) secara **real-time** dari aliran video **USB Webcam** menggunakan **Pinhole Camera Model** dengan memanfaatkan hasil kalibrasi kamera (`yaml/kalibrasi.yaml`).
 
 ### Alur Penurunan Rumus Pinhole Camera Model
 
@@ -169,7 +182,7 @@ $$Z = \frac{f_x \cdot W_{\text{real}}}{w_{\text{pixel}}}$$
 ### Keterangan Parameter & Variabel
 
 1. **$f_x$ & $f_y$ (*Focal Length in Pixels*)**:
-   - Jarak fokus lensa kamera dalam piksel, diperoleh dari hasil kalibrasi webcam (`2_calib.cpp`) pada matriks intrinsik $K$:
+   - Jarak fokus lensa kamera dalam piksel, diperoleh dari hasil kalibrasi webcam (`yaml/kalibrasi.yaml`) pada matriks intrinsik $K$:
 
 $$
 K = \begin{bmatrix} f_x & 0 & c_x \\\\ 0 & f_y & c_y \\\\ 0 & 0 & 1 \end{bmatrix}
@@ -181,32 +194,46 @@ $$
 $$X = \frac{(x_{\text{pixel}} - c_x) \cdot Z}{f_x}, \quad Y = \frac{(y_{\text{pixel}} - c_y) \cdot Z}{f_y}$$
 
 3. **$W_{\text{real}}$ (*Real World Width*)**:
-   - Ukuran lebar fisik objek referensi dalam mm (pada contoh ini $W_{\text{real}} = 200\text{ mm}$).
+   - Ukuran lebar fisik objek referensi dalam mm (misalnya lebar total pola chessboard atau benda acuan lainnya).
 
 4. **$w_{\text{pixel}}$ (*Image Pixel Width*)**:
-   - Ukuran lebar proyeksi objek yang terukur pada frame live USB webcam dalam piksel.
+   - Ukuran lebar proyeksi objek yang terukur pada frame live USB webcam dalam satuan piksel.
 
 5. **$Z$ (*Depth / Distance*)**:
    - Jarak kedalaman dari kamera ke permukaan objek dalam mm atau meter.
 
-### Cara Compile & Jalankan
+### Spesifikasi Fungsional
+
+1. **Load Parameter Kalibrasi**: Membaca $f_x, f_y, c_x, c_y$ dari `yaml/kalibrasi.yaml` menggunakan `cv::FileStorage` (tidak boleh di-*hardcode*).
+2. **Live Capture**: Membuka stream USB webcam (`cv::VideoCapture cap(0)`).
+3. **Deteksi Objek & Pixel Width**: Mendeteksi objek referensi pada frame live dan mengukur $w_{\text{pixel}}$ (misal jarak antartitik terluar).
+4. **Kalkulasi Real-Time**: Menghitung jarak kedalaman $Z = \frac{f_x \cdot W_{\text{real}}}{w_{\text{pixel}}}$ dan koordinat lateral $(X, Y)$ di setiap frame.
+5. **HUD Overlay Video Stream**: Menampilkan bounding box, titik pusat (*centroid*), dan label kedalaman ($Z$) serta posisi 3D ($X, Y, Z$) secara real-time pada jendela tampilan `cv::imshow`.
+6. **Simpan Snapshot & Log**: Sediakan tombol interaktif (rekomendasi: **`[S]`**) untuk menyimpan snapshot visualisasi ke `assets/result/4-bev/depth_pinhole.jpg` dan mencatat hasil kalkulasi ke `yaml/depth.yaml`.
+
+### Rekomendasi Kontrol Tombol Interaktif
+
+- **`[S]`**: Menyimpan foto snapshot visualisasi saat ini ke `assets/result/4-bev/depth_pinhole.jpg` dan data log ke `yaml/depth.yaml`.
+- **`[ESC]` / `[Q]`**: Keluar dari video stream.
+
+### Cara Compile & Jalankan (Setelah Kode Dibuat)
 
 ```bash
 g++ 3_depth.cpp -o 3_depth $(pkg-config --cflags --libs opencv4)
 ./3_depth
 ```
 
-### Penjelasan Langkah Kode
-
-1. **Load Parameter Kalibrasi**: Membaca $f_x, f_y, c_x, c_y$ dari `yaml/kalibrasi.yaml`.
-2. **Live Capture**: Membuka stream USB webcam (`cv::VideoCapture cap(0)`).
-3. **Deteksi Objek & Pixel Width**: Mendeteksi objek referensi pada frame live dan mengukur $w_{\text{pixel}}$.
-4. **Kalkulasi Real-Time**: Menghitung $Z = \frac{f_x \cdot W_{\text{real}}}{w_{\text{pixel}}}$ dan posisi 3D ($X, Y, Z$) di setiap frame.
-5. **HUD Overlay Video Stream**: Menampilkan bounding box, titik pusat, dan label kedalaman ($Z$) secara real-time pada jendela `cv::imshow`.
-
 ---
 
-## Compile Semua Program Sekaligus
+## Compile Program
+
+Untuk mengompilasi program `1_bev.cpp` yang telah disediakan:
+
+```bash
+g++ 1_bev.cpp -o 1_bev $(pkg-config --cflags --libs opencv4)
+```
+
+Setelah Anda selesai membuat file tugas mandiri `2_calib.cpp` dan `3_depth.cpp`, seluruh program dapat dikompilasi secara bersamaan:
 
 ```bash
 g++ 1_bev.cpp -o 1_bev $(pkg-config --cflags --libs opencv4) && \
@@ -220,8 +247,11 @@ g++ 3_depth.cpp -o 3_depth $(pkg-config --cflags --libs opencv4)
 rm -f 1_bev 2_calib 3_depth
 ```
 
+---
+
 ## Catatan
 
-- Hubungkan USB Webcam ke port USB komputer sebelum menjalankan `2_calib` atau `3_depth`.
-- Jalankan `2_calib` terlebih dahulu untuk menghasilkan `yaml/kalibrasi.yaml` khas USB webcam tersebut.
+- File `2_calib.cpp` dan `3_depth.cpp` **sengaja tidak disertakan dalam repositori** karena merupakan tugas mandiri agar peserta dapat mempraktikkan proses kalibrasi kamera dan pemodelan pinhole secara langsung.
+- Hubungkan USB Webcam ke port USB komputer sebelum menjalankan program `2_calib` atau `3_depth`.
+- Jalankan `2_calib` terlebih dahulu untuk menghasilkan `yaml/kalibrasi.yaml` khusus untuk webcam yang digunakan.
 - Pengujian `3_depth` akan menampilkan nilai $Z$ yang berubah secara dinamis saat objek didekatkan/dijauhkan dari webcam.
